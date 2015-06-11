@@ -35,14 +35,6 @@ public class Threads_2 {
             a.start();
         }
 
-        do {
-
-        }while (false);
-
-        System.out.println(violins);
-        System.out.println(fiddleBows);
-        System.out.println(Arrays.toString(artists));
-
     }
 
 }
