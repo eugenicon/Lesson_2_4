@@ -7,55 +7,132 @@
 */
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class Threads_2 {
 
     public static void main(String[] args) {
         int instrumentQuantity = 5;
-        int artistQuantity = 5;
+        int artistQuantity = 10;
 
-        Violin violins[] = new Violin[instrumentQuantity];
-        for (int i = 0; i < violins.length; i++) {
-            violins[i] = new Violin();
+        Queue<Violin> violins = new LinkedList<>();
+        for (int i = 1; i <= instrumentQuantity; i++) {
+            violins.add(new Violin(Violin.class.getSimpleName() + " #" + i));
         }
 
-        FiddleBow fiddleBows[] = new FiddleBow[instrumentQuantity];
-        for (int i = 0; i < violins.length; i++) {
-            fiddleBows[i] = new FiddleBow();
+        Queue<FiddleBow> fiddleBows = new LinkedList<>();
+        for (int i = 1; i <= instrumentQuantity; i++) {
+            fiddleBows.add(new FiddleBow(FiddleBow.class.getSimpleName() + " #" + i));
         }
 
-        System.out.println(Arrays.toString(violins));
-        System.out.println(Arrays.toString(fiddleBows));
+        Artist artists[] = new Artist[artistQuantity];
+        for (int i = 0; i < artists.length; i++) {
+            Artist a = new Artist(Artist.class.getSimpleName() + " #" + (i + 1));
+            a.setViolinPool(violins);
+            a.setFiddleBowPool(fiddleBows);
+            artists[i] = a;
+            a.start();
+        }
+
+        do {
+
+        }while (false);
+
+        System.out.println(violins);
+        System.out.println(fiddleBows);
+        System.out.println(Arrays.toString(artists));
 
     }
 
 }
 
-abstract class SimpleEntity{
-    protected static int totalInstances;
-    protected String description;
+class Violin{
+    private String description;
 
-    public SimpleEntity() {
-        this.description = this.getClass().getSimpleName() + " #" + ++totalInstances;
+    public Violin(String description) {
+        this.description = description;
     }
 
-    @Override
     public String toString() {
         return this.description;
     }
 }
 
-class Violin extends SimpleEntity{
+class FiddleBow{
+    private String description;
 
-}
+    public FiddleBow(String description) {
+        this.description = description;
+    }
 
-class FiddleBow extends SimpleEntity{
-
+    public String toString() {
+        return this.description;
+    }
 }
 
 class Artist extends Thread{
+
+    private Queue<Violin> violinPool;
+    private Queue<FiddleBow> fiddleBowPool;
+
+    private Violin violinTaken;
+    private FiddleBow fiddleBowTaken;
+
+    public Artist(String name) {
+        super(name);
+    }
+
+    public void setFiddleBowPool(Queue<FiddleBow> fiddleBowPool) {
+        this.fiddleBowPool = fiddleBowPool;
+    }
+
+    public void setViolinPool(Queue<Violin> violinPool) {
+        this.violinPool = violinPool;
+    }
+
     @Override
     public void run() {
-        super.run();
+        do {
+            takeInstruments();
+
+            System.out.println(String.format("%s is playing %s and %s",
+                    this, violinTaken, fiddleBowTaken));
+            try {
+                sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            putInstruments();
+
+        }while (false);
+    }
+
+    private void takeInstruments() {
+        do {
+            synchronized (violinPool){
+                violinTaken = violinPool.poll();
+                synchronized (fiddleBowPool){
+                    fiddleBowTaken = fiddleBowPool.poll();
+                }
+            }
+        }while(violinTaken == null);
+    }
+
+    private void putInstruments() {
+        synchronized (violinPool){
+            violinPool.add(violinTaken);
+            violinTaken = null;
+        }
+        synchronized (fiddleBowPool){
+            fiddleBowPool.add(fiddleBowTaken);
+            fiddleBowTaken = null;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return this.getName();
     }
 }
