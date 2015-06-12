@@ -106,15 +106,12 @@ class Artist implements Runnable {
 
                 takeInstruments();
 
-                System.out.println(String.format("%s is playing %s and %s",
-                        this, violinTaken, fiddleBowTaken));
+                playInstruments();
 
-                Thread.sleep(3000);
+                releaseInstruments();
 
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            } finally {
-                putInstruments();
             }
 
         } while (true);
@@ -122,6 +119,7 @@ class Artist implements Runnable {
 
     private void takeInstruments() throws InterruptedException {
         int waitCount;
+
         synchronized (violinPool) {
             waitCount = 0;
             while (violinPool.isEmpty()) {
@@ -130,25 +128,27 @@ class Artist implements Runnable {
                 violinPool.wait();
             }
             violinTaken = violinPool.poll();
-
-            synchronized (fiddleBowPool) {
-                waitCount = 0;
-                while (fiddleBowPool.isEmpty()) {
-                    System.out.println(String.format("%s is waiting for %s - %s time(s)",
-                            this, FiddleBow.class.getSimpleName(), ++waitCount));
-                    fiddleBowPool.wait();
-                }
-                fiddleBowTaken = fiddleBowPool.poll();
-                fiddleBowPool.notify();
-            }
-
+            System.out.println(String.format("%s has taken %s",
+                    this, violinTaken));
             violinPool.notify();
+        }
 
+        synchronized (fiddleBowPool) {
+            waitCount = 0;
+            while (fiddleBowPool.isEmpty()) {
+                System.out.println(String.format("%s is waiting for %s - %s time(s)",
+                        this, FiddleBow.class.getSimpleName(), ++waitCount));
+                fiddleBowPool.wait();
+            }
+            fiddleBowTaken = fiddleBowPool.poll();
+            System.out.println(String.format("%s has taken %s",
+                    this, fiddleBowTaken));
+            fiddleBowPool.notify();
         }
 
     }
 
-    private void putInstruments() {
+    private void releaseInstruments() throws InterruptedException {
         if (violinTaken != null) {
             synchronized (violinPool) {
                 violinPool.add(violinTaken);
@@ -159,6 +159,9 @@ class Artist implements Runnable {
             }
         }
 
+        // set's think for a moment
+        Thread.sleep(500);
+
         if (fiddleBowTaken != null) {
             synchronized (fiddleBowPool) {
                 fiddleBowPool.add(fiddleBowTaken);
@@ -168,6 +171,17 @@ class Artist implements Runnable {
             }
         }
 
+        // we do not want to play right now
+        Thread.sleep(1000);
+
+    }
+
+    private void playInstruments() throws InterruptedException {
+        System.out.println(String.format("%s is playing %s and %s",
+                this, violinTaken, fiddleBowTaken));
+
+        // let's play a bit
+        Thread.sleep(3000);
     }
 
     @Override
