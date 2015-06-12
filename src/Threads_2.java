@@ -6,15 +6,17 @@
 Избежать ситуации, когда скрипачи одновременно пытаются взать один смычек или одну скрипку.
 */
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Scanner;
 
 public class Threads_2 {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         int instrumentQuantity = 5;
         int artistQuantity = 10;
+
+        System.out.println("Type 1 to exit");
 
         Queue<Violin> violins = new LinkedList<>();
         for (int i = 1; i <= instrumentQuantity; i++) {
@@ -26,20 +28,30 @@ public class Threads_2 {
             fiddleBows.add(new FiddleBow(FiddleBow.class.getSimpleName() + " #" + i));
         }
 
-        Artist artists[] = new Artist[artistQuantity];
-        for (int i = 0; i < artists.length; i++) {
+        for (int i = 0; i < artistQuantity; i++) {
             Artist a = new Artist(Artist.class.getSimpleName() + " #" + (i + 1));
             a.setViolinPool(violins);
             a.setFiddleBowPool(fiddleBows);
-            artists[i] = a;
-            a.start();
+
+            new Thread(a).start();
+
+            Thread.sleep(250);
         }
+
+        Scanner sc = new Scanner(System.in);
+        int exit;
+        do {
+            exit = sc.nextByte();
+        } while (exit != 1);
+
+        sc.close();
+        System.exit(0);
 
     }
 
 }
 
-class Violin{
+class Violin {
     private String description;
 
     public Violin(String description) {
@@ -51,7 +63,7 @@ class Violin{
     }
 }
 
-class FiddleBow{
+class FiddleBow {
     private String description;
 
     public FiddleBow(String description) {
@@ -63,7 +75,9 @@ class FiddleBow{
     }
 }
 
-class Artist extends Thread{
+class Artist implements Runnable {
+
+    private String name;
 
     private Queue<Violin> violinPool;
     private Queue<FiddleBow> fiddleBowPool;
@@ -72,7 +86,7 @@ class Artist extends Thread{
     private FiddleBow fiddleBowTaken;
 
     public Artist(String name) {
-        super(name);
+        this.name = name;
     }
 
     public void setFiddleBowPool(Queue<FiddleBow> fiddleBowPool) {
@@ -83,48 +97,77 @@ class Artist extends Thread{
         this.violinPool = violinPool;
     }
 
+    @SuppressWarnings("InfiniteLoopStatement")
     @Override
     public void run() {
         do {
-            takeInstruments();
 
-            System.out.println(String.format("%s is playing %s and %s",
-                    this, violinTaken, fiddleBowTaken));
             try {
-                sleep(3000);
+
+                takeInstruments();
+
+                System.out.println(String.format("%s is playing %s and %s",
+                        this, violinTaken, fiddleBowTaken));
+
+                Thread.sleep(3000);
+
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            } finally {
+                putInstruments();
             }
 
-            putInstruments();
-
-        }while (false);
+        } while (true);
     }
 
-    private void takeInstruments() {
-        do {
-            synchronized (violinPool){
-                violinTaken = violinPool.poll();
-                synchronized (fiddleBowPool){
-                    fiddleBowTaken = fiddleBowPool.poll();
-                }
+    private void takeInstruments() throws InterruptedException {
+
+        synchronized (violinPool) {
+            while (violinPool.isEmpty()) {
+                System.out.println(this + " is waiting for " + Violin.class.getSimpleName());
+                violinPool.wait();
             }
-        }while(violinTaken == null);
+            violinTaken = violinPool.poll();
+
+            synchronized (fiddleBowPool) {
+                while (fiddleBowPool.isEmpty()) {
+                    System.out.println(this + " is waiting for " + FiddleBow.class.getSimpleName());
+                    fiddleBowPool.wait();
+                }
+                fiddleBowTaken = fiddleBowPool.poll();
+                fiddleBowPool.notify();
+            }
+
+            violinPool.notify();
+
+        }
+
     }
 
     private void putInstruments() {
-        synchronized (violinPool){
-            violinPool.add(violinTaken);
-            violinTaken = null;
+        if (violinTaken != null) {
+            synchronized (violinPool) {
+                violinPool.add(violinTaken);
+                System.out.println(this + " has put " + violinTaken);
+                violinTaken = null;
+                violinPool.notify();
+
+            }
         }
-        synchronized (fiddleBowPool){
-            fiddleBowPool.add(fiddleBowTaken);
-            fiddleBowTaken = null;
+
+        if (fiddleBowTaken != null) {
+            synchronized (fiddleBowPool) {
+                fiddleBowPool.add(fiddleBowTaken);
+                System.out.println(this + " has put " + fiddleBowTaken);
+                fiddleBowTaken = null;
+                fiddleBowPool.notify();
+            }
         }
+
     }
 
     @Override
     public String toString() {
-        return this.getName();
+        return this.name;
     }
 }
