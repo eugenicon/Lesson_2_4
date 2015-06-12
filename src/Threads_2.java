@@ -121,17 +121,21 @@ class Artist implements Runnable {
     }
 
     private void takeInstruments() throws InterruptedException {
-
+        int waitCount;
         synchronized (violinPool) {
+            waitCount = 0;
             while (violinPool.isEmpty()) {
-                System.out.println(this + " is waiting for " + Violin.class.getSimpleName());
+                System.out.println(String.format("%s is waiting for %s - %s time(s)",
+                        this, Violin.class.getSimpleName(), ++waitCount));
                 violinPool.wait();
             }
             violinTaken = violinPool.poll();
 
             synchronized (fiddleBowPool) {
+                waitCount = 0;
                 while (fiddleBowPool.isEmpty()) {
-                    System.out.println(this + " is waiting for " + FiddleBow.class.getSimpleName());
+                    System.out.println(String.format("%s is waiting for %s - %s time(s)",
+                            this, FiddleBow.class.getSimpleName(), ++waitCount));
                     fiddleBowPool.wait();
                 }
                 fiddleBowTaken = fiddleBowPool.poll();
